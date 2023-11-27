@@ -1,0 +1,5 @@
+env/
+deeplab_model/
+models/
+netG_epoch_12.pth
+__pycache__/
