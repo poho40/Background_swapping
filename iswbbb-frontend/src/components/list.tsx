@@ -18,12 +18,12 @@ const list:React.FC<listProps> = () => {
     
     const [selectedFiles, setSelectedFiles] = useState([]);
 
-    const handleFileChange = (e) => {
+    const handleFileChange = (e: any) => {
         const files = Array.from(e.target.files);
         setSelectedFiles(files);
         console.log(files)
     };
-    
+
     return(
         <div className='parent pt-5 pl-5'>
             {cards.map((card) => <Card url={card.url} />)}

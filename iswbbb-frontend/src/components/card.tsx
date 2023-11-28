@@ -7,8 +7,6 @@ import Draggable from 'react-draggable';
 
 type cardProps = {
     url: string
-    x: number
-    y: number
 };
 
 const card:React.FC<cardProps> = ({ url }) => {
@@ -27,12 +25,12 @@ const card:React.FC<cardProps> = ({ url }) => {
         console.log('Current height:', h);
     }, [w, h]);
 
-    function handleStop(e, dragElement) {
+    function handleStop(e: any, dragElement: any) {
         setX(dragElement.x);
         setY(dragElement.y);
     }
 
-    function handleResizeStop(e, direction, ref, d) {
+    function handleResizeStop(e: any, direction: any, ref: any, d: any) {
         setW(ref.clientWidth);
         setH(ref.clientHeight);
     }
