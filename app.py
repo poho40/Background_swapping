@@ -5,16 +5,14 @@ import os
 import subprocess
 app = Flask(__name__)
 CORS(app)
-UPLOAD_FOLDER = './iswbbb-frontend/public/background/'
+UPLOAD_FOLDER = './iswbbb-frontend/src/app/background'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/background')
 def hello():
-    print("hello")
     subprocess.call("python3 test_segmentation_deeplab.py -i colab_inputs/input", shell=True)
     subprocess.call("python3 test_pre_process.py -i colab_inputs/input", shell=True)
     output = subprocess.call("CUDA_VISIBLE_DEVICES=0 python3 test_background-matting_image.py -m real-fixed-cam -i colab_inputs/input/ -o colab_inputs/output/ -tb colab_inputs/background/0001.png", shell=True)
-    print(output)
     return 'Hello, World!'
 
 @app.route('/upload-multiple', methods=['POST'])
