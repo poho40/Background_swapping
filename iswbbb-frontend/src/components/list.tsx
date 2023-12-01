@@ -1,7 +1,12 @@
 "use client";
 import React, { useState } from 'react'
+import { useRouter } from 'next/navigation';
 
 
+import {Resizable} from 're-resizable';
+import Draggable from 'react-draggable';
+
+import Card from './card';
 
 const imageUrl =
   'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRe7Ki-ys2G_MMb_xCrY7nAf87F5ZiIOyCh4f5H_JCTTtMSMLCL';
@@ -11,7 +16,7 @@ type listProps = {
 
 const list:React.FC<listProps> = () => {    
     const [files, setFiles] = useState(null);
-
+    const router = useRouter();
     const handleFileChange = (e) => {
         setFiles(e.target.files);
     };
@@ -41,6 +46,7 @@ const list:React.FC<listProps> = () => {
             // Handle the response as needed
             const data = await response.json();
             console.log(data);
+            router.push('/background');
         } catch (error) {
             console.error('Error uploading files:', error);
         }
@@ -49,7 +55,7 @@ const list:React.FC<listProps> = () => {
     return (
         <div>
             <h1>Upload Multiple Files</h1>
-            <form onSubmit={handleSubmit} encType="multipart/form-data">
+            <form action='/background' onSubmit={handleSubmit} encType="multipart/form-data">
                 <input type="file" name="files" multiple onChange={handleFileChange} />
                 <button type="submit">Upload Files</button>
             </form>
