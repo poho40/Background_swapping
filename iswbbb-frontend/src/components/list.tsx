@@ -45,7 +45,6 @@ const list:React.FC<listProps> = () => {
 
             // Handle the response as needed
             const data = await response.json();
-            console.log(data);
             router.push('/background');
         } catch (error) {
             console.error('Error uploading files:', error);
@@ -56,7 +55,7 @@ const list:React.FC<listProps> = () => {
         <div>
             <h1>Upload Multiple Files</h1>
             <form action='/background' onSubmit={handleSubmit} encType="multipart/form-data">
-                <input type="file" name="files" multiple onChange={handleFileChange} />
+                <input type="file" name="files" multiple accept=".png" onChange={handleFileChange} />
                 <button type="submit">Upload Files</button>
             </form>
         </div>
