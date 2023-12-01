@@ -23,11 +23,15 @@ const list:React.FC<listProps> = () => {
         setSelectedFiles(files);
         console.log(files)
     };
+    const onSubmit = () => {
+        
+    };
 
     return(
         <div className='parent pt-5 pl-5'>
             {cards.map((card) => <Card url={card.url} />)}
             <input type="file" id="files" name="files" multiple onChange={handleFileChange}/><br /><br />
+            <button onClick={onSubmit}>Next Step</button>
         </div>
     )
 }
