@@ -14,9 +14,7 @@ type listProps = {
     
 };
 
-const list:React.FC<listProps> = () => {
-    const [cards, setCards] = useState([{url: "https://cdn.mos.cms.futurecdn.net/dPo92zYeAz7Joxh7HWooJ3-1200-80.jpg.webp"}]);
-    
+const list:React.FC<listProps> = () => {    
     const [files, setFiles] = useState(null);
     const router = useRouter();
     const handleFileChange = (e) => {
