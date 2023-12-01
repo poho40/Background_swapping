@@ -2,12 +2,6 @@
 import React, { useState } from 'react'
 
 
-import {Resizable} from 're-resizable';
-import Draggable from 'react-draggable';
-
-import Card from './card';
-import multer from 'multer';
-import path from 'path';
 
 const imageUrl =
   'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRe7Ki-ys2G_MMb_xCrY7nAf87F5ZiIOyCh4f5H_JCTTtMSMLCL';
