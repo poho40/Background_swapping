@@ -5,7 +5,7 @@ import os
 import subprocess
 app = Flask(__name__)
 CORS(app)
-UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/background/'
+UPLOAD_FOLDER = './iswbbb-frontend/public/background/'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/background')
