@@ -54,7 +54,7 @@ const list:React.FC<listProps> = () => {
     return (
         <div>
             <h1>Upload Multiple Files</h1>
-            <form action='/background' onSubmit={handleSubmit} encType="multipart/form-data">
+            <form onSubmit={handleSubmit} encType="multipart/form-data">
                 <input type="file" name="files" multiple accept=".png" onChange={handleFileChange} />
                 <button type="submit">Upload Files</button>
             </form>

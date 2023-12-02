@@ -5,7 +5,7 @@ import os
 import subprocess
 app = Flask(__name__)
 CORS(app)
-UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/src/app/background'
+UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public/background/'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/background')
@@ -17,6 +17,7 @@ def hello():
 
 @app.route('/upload-multiple', methods=['POST'])
 def upload_multiple_files():
+    subprocess.call(f"rm -r '{UPLOAD_FOLDER}'*", shell=True)
     try:
         # Check if the post request has the file part
         if 'files[]' not in request.files:
