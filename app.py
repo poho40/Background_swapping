@@ -3,9 +3,10 @@ from flask_cors import CORS
 import numpy as np
 import os
 import subprocess
+import shutil
 app = Flask(__name__)
 CORS(app)
-UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/src/app/background'
+UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public/background'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/background')
@@ -17,23 +18,39 @@ def hello():
 
 @app.route('/upload-multiple', methods=['POST'])
 def upload_multiple_files():
-    subprocess.call(f"rm -r '{UPLOAD_FOLDER}'*", shell=True)
+    shutil.rmtree(app.config['UPLOAD_FOLDER'])
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+    shutil.rmtree('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/')
+    os.makedirs('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/')
     try:
         # Check if the post request has the file part
         if 'files[]' not in request.files:
             return jsonify({'error': 'No files part in the request'}), 400
 
         files = request.files.getlist('files[]')
-
+        image = request.files.get('image')
+        back = request.files.get('back')
+        print(request.files)
         uploaded_files = []
-
         for file in files:
             if file:
                 # Save the file to the UPLOAD_FOLDER
                 filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
                 file.save(filename)
                 uploaded_files.append(filename)
-
+        
+        if image:
+            print(image)
+            image_filename = os.path.join('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/', '442_img.png')
+            print(image_filename)
+            image.save(image_filename)
+        # Process background
+        if back:
+            back_filename = os.path.join('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/', '442_back.png')
+            print(back_filename)
+            back.save(back_filename)
+        subprocess.call("python3 test_segmentation_deeplab.py -i colab_inputs/input", shell=True)
+        subprocess.call("python3 test_pre_process.py -i colab_inputs/input", shell=True)
         return jsonify({'message': 'Files uploaded successfully', 'files': uploaded_files})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

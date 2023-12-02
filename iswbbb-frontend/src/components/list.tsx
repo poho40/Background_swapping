@@ -15,8 +15,18 @@ type listProps = {
 };
 
 const list:React.FC<listProps> = () => {    
-    const [files, setFiles] = useState(null);
+    const [files, setFiles] = useState([]);
+    const [image, setImage] = useState('');
+    const [back, setBack] = useState('');
     const router = useRouter();
+
+    const handleImageChange = (e) => {
+        setImage(e.target.files[0]);
+      };
+    
+      const handleBackChange = (e) => {
+        setBack(e.target.files[0]);
+      };
     const handleFileChange = (e) => {
         setFiles(e.target.files);
     };
@@ -33,7 +43,8 @@ const list:React.FC<listProps> = () => {
         for (let i = 0; i < files.length; i++) {
             formData.append('files[]', files[i]);
         }
-
+        formData.append('image', image)
+        formData.append('back', back)
         try {
             let headers = new Headers();
             headers.append('Content-Type','application/json')
@@ -53,9 +64,17 @@ const list:React.FC<listProps> = () => {
 
     return (
         <div>
-            <h1>Upload Multiple Files</h1>
+            
             <form onSubmit={handleSubmit} encType="multipart/form-data">
+                <h1>Upload Multiple Files
                 <input type="file" name="files" multiple accept=".png" onChange={handleFileChange} />
+                </h1>
+                <div>Select Image
+                <input type="file" name="files"  accept=".png" onChange={handleImageChange} />
+                </div>
+                <div>Select Back
+                <input type="file" name="files" accept=".png" onChange={handleBackChange} />
+                </div>
                 <button type="submit">Upload Files</button>
             </form>
         </div>
