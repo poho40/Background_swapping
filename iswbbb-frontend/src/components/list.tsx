@@ -3,11 +3,6 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation';
 
 
-import {Resizable} from 're-resizable';
-import Draggable from 'react-draggable';
-
-import Card from './card';
-
 const imageUrl =
   'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRe7Ki-ys2G_MMb_xCrY7nAf87F5ZiIOyCh4f5H_JCTTtMSMLCL';
 type listProps = {

@@ -1,11 +1,10 @@
 "use client";
 import React, { useState, useEffect } from 'react'
-
-
-import {Resizable} from 're-resizable';
-import Draggable from 'react-draggable';
-
-import Card from '@/components/card';
+import Circle from '@/components/Circle';
+import PinkBox from '@/components/PinkBox';
+import SmallCircle from '@/components/SmallCircle';
+import Card from '@/components/Card'
+import '../../App.css'
 
 const imageUrl =
   'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRe7Ki-ys2G_MMb_xCrY7nAf87F5ZiIOyCh4f5H_JCTTtMSMLCL';
@@ -33,8 +32,13 @@ const background:React.FC<listProps> = () => {
   console.log(cards)
 
     return(
-        <div className='parent pt-5 pl-5'>
-            {cards.map((card) => <Card url= {card.url} />)}
+        <div>
+        <div className="container">
+        {cards.map((card) => <Card url= {card.url} />)}
+        {/* <Card url='' /> */}
+        {/* <Circle />
+        <SmallCircle /> */}
+        </div>
         </div>
     )
 }

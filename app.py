@@ -6,7 +6,7 @@ import subprocess
 import shutil
 app = Flask(__name__)
 CORS(app)
-UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public/background'
+UPLOAD_FOLDER = './iswbbb-frontend/public/background'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/background')
@@ -20,8 +20,8 @@ def hello():
 def upload_multiple_files():
     shutil.rmtree(app.config['UPLOAD_FOLDER'])
     os.makedirs(app.config['UPLOAD_FOLDER'])
-    shutil.rmtree('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/')
-    os.makedirs('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/')
+    shutil.rmtree('./colab_inputs/input/')
+    os.makedirs('./colab_inputs/input/')
     try:
         # Check if the post request has the file part
         if 'files[]' not in request.files:
@@ -41,12 +41,12 @@ def upload_multiple_files():
         
         if image:
             print(image)
-            image_filename = os.path.join('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/', '442_img.png')
+            image_filename = os.path.join('./colab_inputs/input/', '442_img.png')
             print(image_filename)
             image.save(image_filename)
         # Process background
         if back:
-            back_filename = os.path.join('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/input/', '442_back.png')
+            back_filename = os.path.join('./colab_inputs/input/', '442_back.png')
             print(back_filename)
             back.save(back_filename)
         subprocess.call("python3 test_segmentation_deeplab.py -i colab_inputs/input", shell=True)
