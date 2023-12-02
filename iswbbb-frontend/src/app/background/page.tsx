@@ -1,8 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react'
-import Circle from '@/components/Circle';
-import PinkBox from '@/components/PinkBox';
-import SmallCircle from '@/components/SmallCircle';
+import { useImageSize } from 'react-image-size';
 import Card from '@/components/Card'
 import '../../App.css'
 
@@ -14,6 +12,7 @@ type listProps = {
 
 const background:React.FC<listProps> = () => {
   const [cards, setCards] = useState([]);
+  const [dimensions, { loading, error }] = useImageSize('https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Icecat1-300x300.svg/600px-Icecat1-300x300.svg.png');
   useEffect(() => {
     // Using fetch to fetch the api from 
     // flask server it will be redirected to proxy
@@ -29,15 +28,12 @@ const background:React.FC<listProps> = () => {
     );
   }, []);
 
-  console.log(cards)
+  console.log(dimensions)
 
     return(
         <div>
-        <div className="container">
+        <div className='container' style={{width: 1920, height: 1080}}>
         {cards.map((card) => <Card url= {card.url} />)}
-        {/* <Card url='' /> */}
-        {/* <Circle />
-        <SmallCircle /> */}
         </div>
         </div>
     )

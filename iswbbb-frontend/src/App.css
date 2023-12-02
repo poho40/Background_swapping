@@ -8,8 +8,6 @@ main {
   .container {
     position: relative;
     border: 1px solid black;
-    height: 800px;
-    width: 800px;
     overflow: hidden;
   }
   
@@ -38,6 +36,8 @@ main {
     position: absolute;
     top: 0;
     left: 0;
+    height: 100px;
+    width: 100px;
     cursor: pointer;
   }
   
