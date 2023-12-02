@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 
 import {Resizable} from 're-resizable';
@@ -14,8 +14,24 @@ type listProps = {
 };
 
 const background:React.FC<listProps> = () => {
-  const [cards, setCards] = useState([{url: "https://www.comingsoon.net/wp-content/uploads/sites/3/2023/06/Watch-the-Transformers-Movies-Before-Rise-of-the-Beasts.jpg"},{url: "/background/transformers.png"}]);
+  const [cards, setCards] = useState([]);
+  useEffect(() => {
+    // Using fetch to fetch the api from 
+    // flask server it will be redirected to proxy
+    fetch("http://localhost:8080/getnames").then((res) =>
+        res.json().then((data) => {
+            // Setting a data from api
+            let temp:any = []
+            for (let i = 0; i < data.files.length; ++i){
+              temp.push({url: "/background/" + data.files[i]})
+            }
+            setCards(temp)
+        })
+    );
+  }, []);
+
   console.log(cards)
+
     return(
         <div className='parent pt-5 pl-5'>
             {cards.map((card) => <Card url= {card.url} />)}

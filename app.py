@@ -5,7 +5,7 @@ import os
 import subprocess
 app = Flask(__name__)
 CORS(app)
-UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public/background/'
+UPLOAD_FOLDER = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/src/app/background'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 @app.route('/background')
@@ -37,6 +37,15 @@ def upload_multiple_files():
         return jsonify({'message': 'Files uploaded successfully', 'files': uploaded_files})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/getnames')
+def get_names():
+    path = os.getcwd() + "/iswbbb-frontend/public/background/"
+    uploaded_files = []
+    for filename in os.listdir(path):
+        if(filename[-3:] == "png"):
+            uploaded_files.append(filename)
+    return jsonify({'files': uploaded_files})
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
