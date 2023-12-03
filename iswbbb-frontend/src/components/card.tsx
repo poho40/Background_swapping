@@ -4,6 +4,7 @@ import {Resizable} from 're-resizable';
 
 import React, { useState, useEffect } from 'react'  
 import useDragger from "../hooks/useDragger";
+import Draggable from 'react-draggable';
 
 type cardProps = {
     url: string
@@ -34,12 +35,13 @@ const Card: React.FC<cardProps> = ({ url })=> {
     }
 
     function handleResizeStop(e: any, direction: any, ref: any, d: any) {
+        console.log("hello")
         setW(ref.clientWidth);
         setH(ref.clientHeight);
     }
 
   return <div id={url} className="object">
-
+            <Draggable onStop={handleStop}>
             <Resizable
                 defaultSize={{
                     width: 200,
@@ -54,6 +56,7 @@ const Card: React.FC<cardProps> = ({ url })=> {
                 bounds="window"
                 >
             </Resizable>
+            </Draggable>
     </div>
 };
 
