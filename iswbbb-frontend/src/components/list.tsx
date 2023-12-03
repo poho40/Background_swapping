@@ -46,18 +46,18 @@ const list:React.FC<listProps> = () => {
         formData.append('image', image)
         formData.append('back', back)
         formData.append('text', text)
-        console.log(text)
         try {
             let headers = new Headers();
             headers.append('Content-Type','application/json')
-            headers.append('Access-Control-Allow-Origin', 'http://127.0.0.1:8080/')
+            headers.append('Access-Control-Allow-Origin', 'http://127.0.0.1:8080/upload-multiple')
             const response = await fetch('http://127.0.0.1:8080/upload-multiple', {
                 method: 'POST',
                 body: formData,
+                headers: headers,
+                mode: 'no-cors'
             });
 
             // Handle the response as needed
-            const data = await response.json();
             router.push('/background');
         } catch (error) {
             console.error('Error uploading files:', error);

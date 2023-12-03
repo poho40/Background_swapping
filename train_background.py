@@ -1,22 +1,18 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
-import numpy as np
-import os
-import subprocess
-import shutil
-from PIL import Image
 import pickle
+import math
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import os
 import cv2
+import time
+import itertools
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
-import joblib
 
 import torchvision
 from torchvision import datasets, models, transforms
@@ -25,179 +21,121 @@ from torchsummary import summary
 import albumentations as A
 import matplotlib.pyplot as plt
 from transformers import DistilBertModel, DistilBertConfig, DistilBertTokenizer
+from tqdm import tqdm_notebook
+from tqdm.autonotebook import tqdm
+from torchvision.models.resnet import ResNet50_Weights
+print("PyTorch Version: ",torch.__version__)
+print("Torchvision Version: ",torchvision.__version__)
+# Detect if we have a GPU available
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    print("Using the GPU!")
+else:
+    print("WARNING: Could not find GPU! Using CPU only. If you want to enable GPU, please to go Edit > Notebook Settings > Hardware Accelerator and select GPU.")
+
+np.random.seed(42)
+torch.manual_seed(42)
+torch.cuda.manual_seed_all(42)
+feat_dim = 2048
+unlabeled_transform = transforms.Compose([transforms.RandomHorizontalFlip(),
+                                         transforms.RandomCrop(64),
+                                         transforms.ToTensor()])
+
+labeled_transform = transforms.Compose([transforms.CenterCrop(64),
+                                        transforms.ToTensor(),])
 
 
-app = Flask(__name__)
-CORS(app)
-UPLOAD_FOLDER = './iswbbb-frontend/public/background'
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+# We use the PyTorch built-in class to download the STL-10 dataset.
+# The 'unlabeled' partition contains 100,000 images without labels.
+# It's used for leanring representations with unsupervised learning.
+dataset_un = torchvision.datasets.STL10('./data', 'unlabeled', download=True, transform=unlabeled_transform)
+def train_classifier(encoder, cls, dataloader, epochs=100, supervised=False):
+    '''
+    Args:
+        encoder: trained/untrained encoder for unsupervised/supervised training.
+        cls: linear classifier.
+        dataloader: train partition.
+        supervised:
 
-@app.route('/background', methods=['GET', 'POST'])
-def hello():
-    try:
-        # Check if the post request has the file part
-        # if 'files[]' not in request.files:
-        #     return jsonify({'error': 'No files part in the request'}), 400
-        text = request.form.get('text')
-        image = request.files.get('image')
-        back = request.files.get('back')
-        print(request.files)
-        
-        if image:
-            print(image)
-            image_filename = os.path.join('./colab_inputs/input/', '442_img.png')
-            print(image_filename)
-            image.save(image_filename)
-        # Process background
-        if back:
-            back_filename = os.path.join('./colab_inputs/input/', '442_back.png')
-            print(back_filename)
-            back.save(back_filename)
-        if text:
-            print(text)
-        subprocess.call("python3 test_segmentation_deeplab.py -i colab_inputs/input", shell=True)
-        try:
-            subprocess.call("python3 test_pre_process.py -i colab_inputs/input", shell=True)
-        except:
-            print('failed')
-        retrieve_images(text)
-        subprocess.call("CUDA_VISIBLE_DEVICES=0 python3 test_background-matting_image.py -m real-fixed-cam -i colab_inputs/input/ -o colab_inputs/output/ -tb output_image.png", shell=True)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    # cards = request.get_json()['cards']
-    # images = []
-    # for card in cards:
-    #     img = Image.open('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public' + card['url'])
-    #     img=np.array(img)
-    #     img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    #     x1, y1, height, width = int(card['dimensions']['x']), int(card['dimensions']['y']), int(card['dimensions']['height']), int(card['dimensions']['width'])
-    #     print( x1, y1, height, width)
-    #     blank_array = np.zeros((1920, 1080, 3), dtype=np.uint8)
-    #     scaled_img = cv2.resize(img_bgr, (width, height))
-    #     blank_array[y1:y1 + height, x1:x1 + width] = scaled_img
-    #     images.append(blank_array)
-    # img_blend = np.zeros((1920, 1080,3))
-    # for img in images:
-    #     img_blend = img_blend.astype(np.float32)
-    #     img = img.astype(np.float32)
-    #     # Blend the current image with the result using the mask
-    #     img_blend = cv2.addWeighted(img_blend, 0.5, img, 0.5, 0)
-    # for i in range(len(images)):     
-    #     mask = np.zeros(images[i].shape)
-    #     x1, y1, height, width = int(cards[i]['dimensions']['x']), int(cards[i]['dimensions']['y']), int(cards[i]['dimensions']['height']), int(cards[i]['dimensions']['width'])
-    #     mask[y1:y1 + height, x1:x1 + width, :] = 1
-    #     cv2.imwrite('mask_image.png', mask)
-    #     img_blend = pyramid_blend(images[i].astype(float), img_blend, mask.astype(float), num_levels=4)
-    #     img_blend=img_blend.astype(np.uint8)
-    # cv2.imwrite('output_image.png', img_blend)
-def resize_image(file, output_path, target_size=(1920, 1080)):
-    with Image.open(file) as img:
-        resized_img = img.resize(target_size)
-        resized_img.save(output_path)
+    Return:
+        cls: linear clssifier.
+    '''
 
+    optimizer = optim.Adam(cls.parameters(), lr=0.001, weight_decay=1e-4)
+    if supervised:
+        optimizer = optim.Adam(list(cls.parameters())+list(encoder.parameters()), lr=0.001, weight_decay=1e-4)
+    criterion = nn.CrossEntropyLoss()
+    loss_traj = []
+    accuracy_traj = []
 
-@app.route('/upload-multiple', methods=['POST', 'GET'])
-def upload_multiple_files():
-    shutil.rmtree(app.config['UPLOAD_FOLDER'])
-    os.makedirs(app.config['UPLOAD_FOLDER'])
-    shutil.rmtree('./colab_inputs/input/')
-    os.makedirs('./colab_inputs/input/')
-    try:
-        # Check if the post request has the file part
-        # if 'files[]' not in request.files:
-        #     return jsonify({'error': 'No files part in the request'}), 400
+    for epoch in tqdm_notebook(range(epochs)):
 
-        text = request.form.get('text')
-        image = request.files.get('image')
-        back = request.files.get('back')
-        # print(request.files)
-        # uploaded_files = []
-        # for file in files:
-        #     if file:
-        #         # Save the file to the UPLOAD_FOLDER
-        #         filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-        #         file.save(filename)
-        #         uploaded_files.append(filename)
-        
-        if image:
-            image_filename = os.path.join('./colab_inputs/input/', '442_img.png')
-            resize_image(image, image_filename, target_size=(1920, 1080))
-        # Process background
-        if back:
-            back_filename = os.path.join('./colab_inputs/input/', '442_back.png')
-            resize_image(back, back_filename, target_size=(1920, 1080))
+        loss_epoch = 0
+        corrects_epoch = 0
+        for x, y in dataloader:
 
-        if text:
-            print(text)
-        subprocess.call("python3 test_segmentation_deeplab.py -i colab_inputs/input", shell=True)
-        subprocess.call("python3 test_pre_process.py -i colab_inputs/input", shell=True)
-        retrieve_images(text)
-        subprocess.call("CUDA_VISIBLE_DEVICES=0 python3 test_background-matting_image.py -m real-fixed-cam -i colab_inputs/input/ -o colab_inputs/output/ -tb output_image.png", shell=True)
-        source_directory = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/colab_inputs/output'
-        destination_directory = '/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public/background'
-        file_name = '442_compose.png'
-        source_path = os.path.join(source_directory, file_name)
-        destination_path = os.path.join(destination_directory, file_name)
-        shutil.move(source_path, destination_path)
-        return jsonify({'message': 'Files uploaded successfully'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    
-@app.route('/getnames')
-def get_names():
-    path = os.getcwd() + "/iswbbb-frontend/public/background/"
-    uploaded_files = []
-    for filename in os.listdir(path):
-        if(filename[-3:] == "png"):
-            uploaded_files.append(filename)
-    return jsonify({'files': uploaded_files})
+            batch_size = x.size(0)
+            x = x.float()
+            ##############################################################################
+            #                               YOUR CODE HERE                               #
+            ##############################################################################
+            # TODO: update the parameters of the classifer. If in supervised mode, the   #
+            # parameter of the encoder is also updated.                                  #
+            ##############################################################################
+            x, y = x, y
+            optimizer.zero_grad()
+            outs = cls.forward(encoder.forward(x).reshape(-1, feat_dim))
+            loss = criterion(outs, y)
+            loss.backward()
+            optimizer.step()
+            ##############################################################################
+            #                               END OF YOUR CODE                             #
+            ##############################################################################
+            _, preds = torch.max(outs, 1)
+            corrects_epoch += torch.sum(preds == y.data)
+            loss_epoch += loss.detach()
 
-    
-def retrieve_images(query):
-    image_embeddings = torch.load('image_embeddings.pt', map_location=torch.device('cpu'))
-    with open('image_filenames', 'rb') as file:
-    # Load the data from the file
-      image_filenames = pickle.load(file)
-    model = torch.load('flickr8.pt', map_location=torch.device('cpu'))
+        loss_traj.append(loss_epoch)
+        epoch_acc = corrects_epoch.double() / len(dataloader.dataset)
+        accuracy_traj.append(epoch_acc)
 
-    tokenizer = DistilBertTokenizer.from_pretrained(text_tokenizer)
-    encoded_query = tokenizer([query])
-    batch = {
-        key: torch.tensor(values)
-        for key, values in encoded_query.items()
-    }
-    with torch.no_grad():
-        text_features = model.text_encoder(
-            input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
-        )
-        text_embeddings = model.text_projection(text_features)
+        if epoch % 10 == 0:
+            print('Epoch {}, loss {:.3f}, train accuracy {}'.format(epoch, loss_epoch, epoch_acc))
 
+    return cls, loss_traj
 
-    ##############################################################################
-    #                               YOUR CODE HERE                               #
-    ##############################################################################
-    # TODO: Please normalize the image_embeddings and text_embeddings using L2norm,
-    # calculate the similarity,
-    # and then get the top k similar images to the given text query and pass them to the 'matches' variable.
-    # Note: You cannot use any for loops in this function.
-    ##############################################################################
-    matches = None # Please keep this as the variable name for the matches
-    image_path = "/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/flickr8k/Images"
-    img_norm = F.normalize(image_embeddings,p=2, dim=-1)
-    text_norm = F.normalize(text_embeddings, p=2, dim=-1)
-    normal = text_norm @ img_norm.T
-    vals, indices = torch.topk(normal.squeeze(0), 1)
-    matches = image_filenames[torch.Tensor.tolist(indices)]
-    image = cv2.imread(f"{image_path}/{matches[0]}")
-    print(f"{image_path}/{matches[0]}")
-    image = cv2.resize(image, (1920, 1080))
-    cv2.imwrite('output_image.png', image)
-    ##############################################################################
-    #                               END OF YOUR CODE                             #
-    ##############################################################################
+def test(encoder, cls, dataloader):
+    '''
+    Calculate the accuracy of the trained linear classifier on the test set.
+    '''
+    cls.eval()
 
-image_path = "/content/Images"
-captions_path = "/content"
+    loss_epoch = 0
+    corrects_epoch = 0
+    for x, y in dataloader:
+
+        x = x.float()
+        batch_size = x.size(0)
+        x, y = x, y
+        h = encoder(x).view(batch_size, -1)
+        outs = cls(h)
+        _, preds = torch.max(outs, 1)
+        corrects_epoch += torch.sum(preds == y.data)
+
+    epoch_acc = corrects_epoch.double() / len(dataloader.dataset)
+    print('Test accuracy {}'.format(epoch_acc))
+
+# dataset pre-processing
+df = pd.read_csv('captions.txt', delimiter='|')
+img_color = cv2.imread('flickr30k/Images/'+ str(df['image_name'][0]),1)
+plt.imshow(cv2.cvtColor(img_color, cv2.COLOR_BGR2RGB))
+df['id'] = [id_ for id_ in range(df.shape[0] // 5) for _ in range(5)]
+df.to_csv("captions.csv", index=False)
+df = pd.read_csv("captions.csv")
+df.head()
+
+image_path = "/flickr30k/images/flickr30k_images"
+captions_path = "/flickr30k"
 batch_size = 32
 num_workers = 2
 head_lr = 1e-3
@@ -244,7 +182,7 @@ class AvgMeter:
 def get_lr(optimizer):
     for param_group in optimizer.param_groups:
         return param_group["lr"]
-
+    
 class CLIPDataset(torch.utils.data.Dataset):
     def __init__(self, image_filenames, captions, tokenizer, transforms):
         """
@@ -287,7 +225,6 @@ def get_transforms(mode="train"):
             ]
         )
 
-from torchvision.models.resnet import ResNet50_Weights
 class ImageEncoder(nn.Module):
     """
     Encode images to a fixed size vector
@@ -306,7 +243,6 @@ class ImageEncoder(nn.Module):
     def forward(self, x):
         return self.model(x)
     
-
 class TextEncoder(nn.Module):
     def __init__(self, model_name=text_encoder_model, pretrained=pretrained, trainable=trainable):
         super().__init__()
@@ -326,7 +262,6 @@ class TextEncoder(nn.Module):
         last_hidden_state = output.last_hidden_state
         return last_hidden_state[:, self.target_token_idx, :]
     
-
 class ProjectionHead(nn.Module):
     def __init__(
         self,
@@ -371,7 +306,7 @@ class ProjectionHead(nn.Module):
         #                               END OF YOUR CODE                             #
         ##############################################################################
         return projected
-    
+
 class CLIPModel(nn.Module):
     def __init__(
         self,
@@ -435,8 +370,8 @@ class CLIPModel(nn.Module):
         im_projection = F.normalize(self.image_projection(image_features))
         te_projection = F.normalize(self.text_projection(text_features))
         logits = (te_projection @ im_projection.T) / self.temperature
-        text_loss = criterion(logits, torch.arange(batch_size))
-        image_loss = criterion(logits.T, torch.arange(batch_size).T)
+        text_loss = criterion(logits, torch.arange(batch_size).cuda())
+        image_loss = criterion(logits.T, torch.arange(batch_size).cuda().T)
         loss = (text_loss + image_loss)/2
         ##############################################################################
         #                               END OF YOUR CODE                             #
@@ -444,5 +379,106 @@ class CLIPModel(nn.Module):
 
         return loss.mean()
     
-if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+def make_train_valid_dfs():
+    dataframe = pd.read_csv("captions.csv")
+    dataframe = dataframe[dataframe.reset_index().index % 5 == 0]
+    max_id = dataframe["id"].max() + 1
+    image_ids = np.arange(0, max_id)
+    np.random.seed(42)
+    valid_ids = np.random.choice(
+        image_ids, size=int(0.2 * len(image_ids)), replace=False
+    )
+    train_ids = [id_ for id_ in image_ids if id_ not in valid_ids]
+    train_dataframe = dataframe[dataframe["id"].isin(train_ids)].reset_index(drop=True)
+    valid_dataframe = dataframe[dataframe["id"].isin(valid_ids)].reset_index(drop=True)
+    return train_dataframe, valid_dataframe
+
+
+def build_loaders(dataframe, tokenizer, mode):
+    transforms = get_transforms(mode=mode)
+    dataset = CLIPDataset(
+        dataframe["image_name"].values,
+        dataframe["caption_text"].values,
+        tokenizer=tokenizer,
+        transforms=transforms,
+    )
+    dataloader = torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=True if mode == "train" else False,
+        drop_last=True
+    )
+    return dataloader
+
+def train_epoch(model, train_loader, optimizer, lr_scheduler, step):
+    loss_meter = AvgMeter()
+    tqdm_object = tqdm(train_loader, total=len(train_loader))
+    for i, batch in enumerate(tqdm_object):
+        batch = {k: v for k, v in batch.items() if k != "caption"}
+        loss = model(batch)
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        if step == "batch":
+            lr_scheduler.step()
+
+        count = batch["image"].size(0)
+        loss_meter.update(loss.item(), count)
+
+        tqdm_object.set_postfix(train_loss=loss_meter.avg, lr=get_lr(optimizer))
+
+        if i % 100 == 0:
+            print('loss:', loss.item() / count)
+    return loss_meter
+
+
+def valid_epoch(model, valid_loader):
+    loss_meter = AvgMeter()
+
+    tqdm_object = tqdm(valid_loader, total=len(valid_loader))
+    for batch in tqdm_object:
+        batch = {k: v for k, v in batch.items() if k != "caption"}
+        loss = model(batch)
+
+        count = batch["image"].size(0)
+        loss_meter.update(loss.item(), count)
+
+        tqdm_object.set_postfix(valid_loss=loss_meter.avg)
+    return loss_meter
+
+train_df, valid_df = make_train_valid_dfs()
+tokenizer = DistilBertTokenizer.from_pretrained(text_tokenizer)
+train_loader = build_loaders(train_df, tokenizer, mode="train")
+valid_loader = build_loaders(valid_df, tokenizer, mode="valid")
+
+
+model = CLIPModel()
+params = [
+    {"params": model.image_encoder.parameters(), "lr": image_encoder_lr},
+    {"params": model.text_encoder.parameters(), "lr": text_encoder_lr},
+    {"params": itertools.chain(
+        model.image_projection.parameters(), model.text_projection.parameters()
+    ), "lr": head_lr, "weight_decay": weight_decay}
+]
+optimizer = torch.optim.AdamW(params, weight_decay=0.)
+lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode="min", patience=patience, factor=factor
+)
+step = "epoch"
+
+best_loss = float('inf')
+for epoch in range(epochs):
+    print(f"Epoch: {epoch + 1}")
+    model.train()
+    train_loss = train_epoch(model, train_loader, optimizer, lr_scheduler, step)
+    model.eval()
+    with torch.no_grad():
+        valid_loss = valid_epoch(model, valid_loader)
+
+    if valid_loss.avg < best_loss:
+        best_loss = valid_loss.avg
+        torch.save(model.state_dict(),  "best.pt")
+        print("Saved Best Model!")
+
+    lr_scheduler.step(valid_loss.avg)
