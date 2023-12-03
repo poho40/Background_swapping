@@ -19,13 +19,11 @@ const background:React.FC<listProps> = () => {
         res.json().then((data) => {
             // Setting a data from api
             let temp:any = []
-            let temp_dimension:any = []
             for (let i = 0; i < data.files.length; ++i){
               let str = "/background/" + data.files[i]
               temp.push({url:str, dimensions: {x:0, y:0, width:200, height:200}})
             }
             setCards(temp)
-            console.log(temp)
         })
     );
   }, []);
@@ -44,12 +42,34 @@ const background:React.FC<listProps> = () => {
     console.log('Updated values received from Card:', url, x, y, w, h);
   };
 
+  const handleClick = async (e) => {
+    const formData = new FormData();
+    e.preventDefault();
+    const requestBody = JSON.stringify({ cards });
+    try {
+        let headers = new Headers();
+        headers.append('Content-Type','application/json')
+        headers.append('Access-Control-Allow-Origin', 'http://127.0.0.1:8080/')
+        const response = await fetch('http://127.0.0.1:8080/background', {
+            method: 'POST',
+            headers: headers,
+            body:requestBody,
+        });
+
+        // Handle the response as needed
+        const data = await response.json();
+    } catch (error) {
+        console.error('Error uploading files:', error);
+    }
+  };
+
 
     return(
         <div>
         <div className='container' style={{width: 1920, height: 1080}}>
-        {cards.map((card) => <Card url= {card.url} onUpdate={handleCardUpdate} />)}
+        {cards.map((card) => <Card key={card.url} url= {card.url} onUpdate={handleCardUpdate} />)}
         </div>
+        <button onClick={handleClick}>Submit</button>
         </div>
     )
 }
