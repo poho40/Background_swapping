@@ -5,39 +5,55 @@ import os
 import subprocess
 import shutil
 from PIL import Image
-import cv2
+import pickle
+import numpy as np
 import matplotlib.pyplot as plt
+import os
+import cv2
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
+import joblib
+
+import torchvision
+from torchvision import datasets, models, transforms
+from torchsummary import summary
+
+import albumentations as A
+import matplotlib.pyplot as plt
+from transformers import DistilBertModel, DistilBertConfig, DistilBertTokenizer
+
+
 app = Flask(__name__)
 CORS(app)
 UPLOAD_FOLDER = './iswbbb-frontend/public/background'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-@app.route('/background', methods=['POST'])
+@app.route('/background', methods=['GET'])
 def hello():
-    cards = request.get_json()['cards']
-    images = []
-    for card in cards:
-        img = Image.open('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public' + card['url'])
-        img=np.array(img)
-        img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        x1, y1, height, width = int(card['dimensions']['x']), int(card['dimensions']['y']), int(card['dimensions']['height']), int(card['dimensions']['width'])
-        print( x1, y1, height, width)
-        blank_array = np.zeros((1920, 1080, 3), dtype=np.uint8)
-        scaled_img = cv2.resize(img_bgr, (width, height))
-        blank_array[y1:y1 + height, x1:x1 + width] = scaled_img
-        images.append(blank_array)
-    img_blend = np.zeros((1920, 1080,3))
-    mask = np.ones_like(images[0], dtype=np.float32)
-    for img in images:
-        # Apply Gaussian blur to the alpha mask
-        mask = cv2.GaussianBlur(mask, (0,0), 50)
-
-        # Normalize the mask values to range [0, 1]
-        mask = mask / 255.0
-        img_blend = img_blend.astype(np.float32)
-        img = img.astype(np.float32)
-        # Blend the current image with the result using the mask
-        img_blend = cv2.addWeighted(img_blend, 0.5, img, 0.5, 0)
+    query = "dogs in park"
+    retrieve_images(query)
+    # cards = request.get_json()['cards']
+    # images = []
+    # for card in cards:
+    #     img = Image.open('/Users/rohit/Desktop/Umich2ndyear/Fall2023/EECS 442/442_Project/iswbbb-frontend/public' + card['url'])
+    #     img=np.array(img)
+    #     img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    #     x1, y1, height, width = int(card['dimensions']['x']), int(card['dimensions']['y']), int(card['dimensions']['height']), int(card['dimensions']['width'])
+    #     print( x1, y1, height, width)
+    #     blank_array = np.zeros((1920, 1080, 3), dtype=np.uint8)
+    #     scaled_img = cv2.resize(img_bgr, (width, height))
+    #     blank_array[y1:y1 + height, x1:x1 + width] = scaled_img
+    #     images.append(blank_array)
+    # img_blend = np.zeros((1920, 1080,3))
+    # for img in images:
+    #     img_blend = img_blend.astype(np.float32)
+    #     img = img.astype(np.float32)
+    #     # Blend the current image with the result using the mask
+    #     img_blend = cv2.addWeighted(img_blend, 0.5, img, 0.5, 0)
     # for i in range(len(images)):     
     #     mask = np.zeros(images[i].shape)
     #     x1, y1, height, width = int(cards[i]['dimensions']['x']), int(cards[i]['dimensions']['y']), int(cards[i]['dimensions']['height']), int(cards[i]['dimensions']['width'])
@@ -45,7 +61,7 @@ def hello():
     #     cv2.imwrite('mask_image.png', mask)
     #     img_blend = pyramid_blend(images[i].astype(float), img_blend, mask.astype(float), num_levels=4)
     #     img_blend=img_blend.astype(np.uint8)
-    cv2.imwrite('output_image.png', img_blend)
+    # cv2.imwrite('output_image.png', img_blend)
     subprocess.call("CUDA_VISIBLE_DEVICES=0 python3 test_background-matting_image.py -m real-fixed-cam -i colab_inputs/input/ -o colab_inputs/output/ -tb output_image.png", shell=True)
     return 'Hello, World!'
 
@@ -97,141 +113,297 @@ def get_names():
             uploaded_files.append(filename)
     return jsonify({'files': uploaded_files})
 
+    
+def retrieve_images(query):
+    image_embeddings = torch.load('image_embeddings.pt', map_location=torch.device('cpu'))
+    with open('image_filenames', 'rb') as file:
+    # Load the data from the file
+      image_filenames = pickle.load(file)
+    model = torch.load('flickr8.pt', map_location=torch.device('cpu'))
 
-def pyramid_upsample(img, kernel_size=(5,5)):
-  """
-  Upsamples the given pyramid image.
-  Input:
-    - img: an image of shape M x N x C
-    - kernel_size: a tuple representing the shape of the 2D kernel
-  Returns:
-    - upsampled: an image represented as an array of shape 2M x 2N x C
-  """
-  #############################################################################
-  # TODO: Implement pyramid upsampling.                                       #
-  ###############################
-  ##############################################
-  new_img = np.insert(img, [i for i in range(len(img))], 0, axis=0)
-  new_img = np.insert(new_img, [j for j in range(len(img[0]))], 0, axis=1)
-  upsampled = 4*cv2.GaussianBlur(new_img, kernel_size, 1)
-  #############################################################################
-  #                              END OF YOUR CODE                             #
-  #############################################################################
-  return upsampled
-
-def pyramid_downsample(img, kernel_size=(5,5)):
-  """
-  Downsamples the given pyramid image.
-  Input:
-    - img: an image of shape M x N x C
-    - kernel_size: a tuple representing the shape of the 2D kernel
-  Returns:
-    - downsampled: an image of shape M/2 x N/2 x C
-  """
-  #############################################################################
-  # TODO: Implement pyramid downsampling.                                     #
-  #############################################################################
-  new_img = cv2.GaussianBlur(img, kernel_size, 1)
-  downsampled = np.delete(new_img , [i for i in range(0,len(img),2)], axis=0)
-  downsampled = np.delete(downsampled, [j for j in range(0,len(img[0]),2)], axis=1)
-  #############################################################################
-  #                              END OF YOUR CODE                             #
-  #############################################################################
-  return downsampled
-
-def gen_gaussian_pyramid(img, num_levels):
-  """
-  Generates an entire Gaussian pyramid.
-  Input:
-    - img: an image of shape M x N x C
-    - num_levels: number of levels in the Gaussian pyramid
-  Return:
-    - gp: list, the generated levels (imgs) of the Gaussian pyramid
-  """
-  #############################################################################
-  # TODO: Construct a Gaussian pyramid given a base image `img`.              #
-  #############################################################################
-  gp = []
-  gp.append(img)
-  new_img = img
-  for i in range(num_levels - 1):
-    new_img = pyramid_downsample(new_img)
-    gp.append(new_img)
-  #############################################################################
-  #                              END OF YOUR CODE                             #
-  #############################################################################
-  return gp
-
-def gen_laplacian_pyramid(gp, num_levels):
-  """
-  Generates an entire Laplacian pyramid.
-  Input:
-    gp: list, levels of a Gaussian pyramid
-  Return:
-    lp: list, the generated levels (imgs) of the Laplacian pyramid
-  """
-  #############################################################################
-  # TODO: Construct a Laplacian pyramid given a base Gaussian pyramid `gp`.   #
-  #############################################################################
-  lp = []
-  for i in range(num_levels - 1):
-    lp.append(gp[i] - pyramid_upsample(gp[i+1]))
-  lp.append(gp[len(gp)-1])
-  lp.reverse()
-  #############################################################################
-  #                              END OF YOUR CODE                             #
-  #############################################################################
-  return lp
-
-def reconstruct_img(lp):
-  """
-  Reconstructs an image using a laplacian pyramid.
-  Input:
-    lp: list, levels (imgs) of a Laplacian pyramid
-  Return:
-    recon_img: reconstructed image
-  """
-  recon_img = lp[0]
-  for i in range(1, len(lp)):
-    ###########################################################################
-    # TODO: For each level, reconstruct the image from the Laplacian pyramid. #
-    ###########################################################################
-    recon_img = lp[i] + pyramid_upsample(recon_img)
-    ###########################################################################
-    #                              END OF YOUR CODE                           #
-    ###########################################################################
-
-  return recon_img
-
-def pyramid_blend(img1, img2, mask, num_levels=6):
-  """
-  This function produces the Laplacian pyramid blend of two images.
-  Input:
-    - img1: N x M x C uint8 array image
-    - img2: N x M x C uint8 array image
-    - mask: N x M array, all elements are either 0s or 1s
-    - num_levels: int, height of the pyramid
-  Return:
-    - img_blend: the blended image, an N x M x C uint8 array
-  """
-  # Build Gaussian pyramids for img1, img2, and mask
-  gp1, gp2, gpm = gen_gaussian_pyramid(img1, num_levels), gen_gaussian_pyramid(img2, num_levels), gen_gaussian_pyramid(mask, num_levels)
-  # Build Laplacian pyramids for img1 and img2
-  lp1, lp2 = gen_laplacian_pyramid(gp1, num_levels), gen_laplacian_pyramid(gp2, num_levels)
-  #############################################################################
-  # TODO: Construct the Laplacian pyramid and use it to blend the images.     #
-  #############################################################################
-  lp = []
-  gpm.reverse()
-  for i in range(num_levels):
-    lp.append(lp1[i] * gpm[i] + lp2[i] * (1 - gpm[i]))
-  img_blend = reconstruct_img(lp)
-  #############################################################################
-  #                              END OF YOUR CODE                             #
-  #############################################################################
-
-  return img_blend
+    tokenizer = DistilBertTokenizer.from_pretrained(text_tokenizer)
+    encoded_query = tokenizer([query])
+    batch = {
+        key: torch.tensor(values)
+        for key, values in encoded_query.items()
+    }
+    with torch.no_grad():
+        text_features = model.text_encoder(
+            input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+        )
+        text_embeddings = model.text_projection(text_features)
 
 
+    ##############################################################################
+    #                               YOUR CODE HERE                               #
+    ##############################################################################
+    # TODO: Please normalize the image_embeddings and text_embeddings using L2norm,
+    # calculate the similarity,
+    # and then get the top k similar images to the given text query and pass them to the 'matches' variable.
+    # Note: You cannot use any for loops in this function.
+    ##############################################################################
+    matches = None # Please keep this as the variable name for the matches
+    image_path = "/content/Images"
+    img_norm = F.normalize(image_embeddings,p=2, dim=-1)
+    text_norm = F.normalize(text_embeddings, p=2, dim=-1)
+    normal = text_norm @ img_norm.T
+    vals, indices = torch.topk(normal.squeeze(0), 1)
+    matches = image_filenames[torch.Tensor.tolist(indices)]
+    print(matches)
+    image = cv2.imread(f"{image_path}/{matches[0]}")
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    cv2.imwrite('output_image.png', image)
+    ##############################################################################
+    #                               END OF YOUR CODE                             #
+    ##############################################################################
+
+image_path = "/content/Images"
+captions_path = "/content"
+batch_size = 32
+num_workers = 2
+head_lr = 1e-3
+image_encoder_lr = 1e-4
+text_encoder_lr = 1e-5
+weight_decay = 1e-3
+patience = 1
+factor = 0.8
+epochs = 3
+
+image_encoder_model = 'resnet50'
+image_embedding = 2048
+text_encoder_model = "distilbert-base-uncased"
+text_embedding = 768
+text_tokenizer = "distilbert-base-uncased"
+max_length = 200
+
+pretrained = True # for both image encoder and text encoder
+trainable = True # for both image encoder and text encoder
+temperature = 0.07
+
+image_size = 64
+
+# for projection head; used for both image and text encoders
+projection_dim = 256
+
+class AvgMeter:
+    def __init__(self, name="Metric"):
+        self.name = name
+        self.reset()
+
+    def reset(self):
+        self.avg, self.sum, self.count = [0] * 3
+
+    def update(self, val, count=1):
+        self.count += count
+        self.sum += val * count
+        self.avg = self.sum / self.count
+
+    def __repr__(self):
+        text = f"{self.name}: {self.avg:.4f}"
+        return text
+
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group["lr"]
+
+class CLIPDataset(torch.utils.data.Dataset):
+    def __init__(self, image_filenames, captions, tokenizer, transforms):
+        """
+        image_filenames and cpations must have the same length; so, if there are
+        multiple captions for each image, the image_filenames must have repetitive
+        file names
+        """
+
+        self.image_filenames = image_filenames
+        self.captions = list(captions)
+        self.encoded_captions = tokenizer(
+            list(captions), padding=True, truncation=True, max_length=max_length
+        )
+        self.transforms = transforms
+
+    def __getitem__(self, idx):
+        item = {
+            key: torch.tensor(values[idx])
+            for key, values in self.encoded_captions.items()
+        }
+
+        image = cv2.imread(f"{image_path}/{self.image_filenames[idx]}")
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = self.transforms(image=image)['image']
+        item['image'] = torch.tensor(image).permute(2, 0, 1).float()
+        item['caption'] = self.captions[idx]
+
+        return item
+
+
+    def __len__(self):
+        return len(self.captions)
+
+# data augmentation for images
+def get_transforms(mode="train"):
+    return A.Compose(
+            [
+                A.Resize(image_size, image_size, always_apply=True),
+                A.Normalize(max_pixel_value=255.0, always_apply=True),
+            ]
+        )
+
+from torchvision.models.resnet import ResNet50_Weights
+class ImageEncoder(nn.Module):
+    """
+    Encode images to a fixed size vector
+    """
+
+    def __init__(
+        self, model_name=image_encoder_model, pretrained=pretrained, trainable=trainable
+    ):
+        super().__init__()
+        self.model = torchvision.models.resnet50(ResNet50_Weights.IMAGENET1K_V2)
+        self.model.fc = nn.Identity()
+
+        for p in self.model.parameters():
+            p.requires_grad = trainable
+
+    def forward(self, x):
+        return self.model(x)
+    
+
+class TextEncoder(nn.Module):
+    def __init__(self, model_name=text_encoder_model, pretrained=pretrained, trainable=trainable):
+        super().__init__()
+        if pretrained:
+            self.model = DistilBertModel.from_pretrained(model_name)
+        else:
+            self.model = DistilBertModel(config=DistilBertConfig())
+
+        for p in self.model.parameters():
+            p.requires_grad = trainable
+
+        # we are using the CLS token hidden representation as the sentence's embedding
+        self.target_token_idx = 0
+
+    def forward(self, input_ids, attention_mask):
+        output = self.model(input_ids=input_ids, attention_mask=attention_mask)
+        last_hidden_state = output.last_hidden_state
+        return last_hidden_state[:, self.target_token_idx, :]
+    
+
+class ProjectionHead(nn.Module):
+    def __init__(
+        self,
+        embedding_dim,
+        projection_dim=projection_dim,
+    ):
+        super().__init__()
+        '''
+        Args:
+            embedding_dim (int): Extracted Image or text feature embedding dimenasion.
+        '''
+
+        ##############################################################################
+        #                               YOUR CODE HERE                               #
+        ##############################################################################
+        # TODO: Initialize a single layer linear transformation for the projection   #
+        # head.                                                                      #
+        ##############################################################################
+        self.linear = nn.Linear(embedding_dim, projection_dim)
+        ##############################################################################
+        #                               END OF YOUR CODE                             #
+        ##############################################################################
+
+    def forward(self, x):
+        '''
+        Args:
+            x: Image or text feature embeddings extracted from the ResNet50 and DistilBERT model respectively.
+
+        Return:
+            projected: The projected image and text embeddings.
+        '''
+        ##############################################################################
+        #                               YOUR CODE HERE                               #
+        ##############################################################################
+        # TODO: Write the forward function. Normalize the output of the projection   #
+        # head. Hint: use F.normalize() for the normalization                        #
+        ##############################################################################
+
+        projected = self.linear(x)
+
+        ##############################################################################
+        #                               END OF YOUR CODE                             #
+        ##############################################################################
+        return projected
+    
+class CLIPModel(nn.Module):
+    def __init__(
+        self,
+        temperature=temperature,
+        image_embedding=image_embedding,
+        text_embedding=text_embedding,
+    ):
+        super().__init__()
+        '''
+        Args:
+            temperature (float): temperature parameter which controls the range of the logits.
+            image_embedding (int): Shape of the extracted image embedding
+            text_embedding (int): Shape of the extracted text embedding
+
+        '''
+
+        self.image_encoder = None
+        self.text_encoder = None
+        self.image_projection = None
+        self.text_projection = None
+        self.temperature = temperature
+        ##############################################################################
+        #                               YOUR CODE HERE                               #
+        ##############################################################################
+        # TODO: Initialize the encoders and the projection heads for image and text i.e,
+        # instantiate the above None variables with their corresponding models       #
+        ##############################################################################
+        self.image_encoder = ImageEncoder(image_encoder_model, pretrained=True, trainable=True)
+        self.text_encoder = TextEncoder(text_encoder_model, pretrained=True, trainable=True)
+        self.image_projection = ProjectionHead(image_embedding, projection_dim)
+        self.text_projection = ProjectionHead(text_embedding, projection_dim)
+        ##############################################################################
+        #                               END OF YOUR CODE                             #
+        ##############################################################################
+
+
+    def forward(self, batch):
+
+        '''
+        Args:
+            batch: batch of images for training.
+
+        Return:
+            loss: computed loss.
+        '''
+        # get image and text features
+        image_features = self.image_encoder(batch["image"])
+        text_features = self.text_encoder(
+            input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]
+        )
+
+        loss = None
+        ##############################################################################
+        #                               YOUR CODE HERE                               #
+        ##############################################################################
+        # TODO: Project image_features and text_features into a new vector space and write the loss function by following the above equations
+        # Hint: You can make use of nn.CrossEntropyLoss() or nn.LogSoftmax() when calculating the loss
+        # you are not allowed to use any for loops while computing the loss.
+        ##############################################################################
+        criterion = nn.CrossEntropyLoss()
+        im_projection = F.normalize(self.image_projection(image_features))
+        te_projection = F.normalize(self.text_projection(text_features))
+        logits = (te_projection @ im_projection.T) / self.temperature
+        text_loss = criterion(logits, torch.arange(batch_size))
+        image_loss = criterion(logits.T, torch.arange(batch_size).T)
+        loss = (text_loss + image_loss)/2
+        ##############################################################################
+        #                               END OF YOUR CODE                             #
+        ##############################################################################
+
+        return loss.mean()
+    
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
