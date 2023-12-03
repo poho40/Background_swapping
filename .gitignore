@@ -3,3 +3,6 @@ deeplab_model/
 models/
 netG_epoch_12.pth
 __pycache__/
+flickr8.*
+image_embeddings.*
+image_filenames
