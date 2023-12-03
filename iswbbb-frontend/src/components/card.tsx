@@ -31,6 +31,7 @@ const Card: React.FC<cardProps & { onUpdate: (url:string, x: number, y: number, 
                 // console.log('Element position Y:', rect.top);
                 setX(rect.left)
                 setY(rect.top)
+                onUpdate(url, rect.left, rect.top, w, h);
             }
         };
 
