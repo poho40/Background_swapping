@@ -73,20 +73,20 @@ def upload_multiple_files():
     os.makedirs('./colab_inputs/input/')
     try:
         # Check if the post request has the file part
-        if 'files[]' not in request.files:
-            return jsonify({'error': 'No files part in the request'}), 400
+        # if 'files[]' not in request.files:
+        #     return jsonify({'error': 'No files part in the request'}), 400
 
-        files = request.files.getlist('files[]')
+        text = request.form.get('text')
         image = request.files.get('image')
         back = request.files.get('back')
         print(request.files)
         uploaded_files = []
-        for file in files:
-            if file:
-                # Save the file to the UPLOAD_FOLDER
-                filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-                file.save(filename)
-                uploaded_files.append(filename)
+        # for file in files:
+        #     if file:
+        #         # Save the file to the UPLOAD_FOLDER
+        #         filename = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        #         file.save(filename)
+        #         uploaded_files.append(filename)
         
         if image:
             print(image)
@@ -98,6 +98,8 @@ def upload_multiple_files():
             back_filename = os.path.join('./colab_inputs/input/', '442_back.png')
             print(back_filename)
             back.save(back_filename)
+        if text:
+            print(text)
         subprocess.call("python3 test_segmentation_deeplab.py -i colab_inputs/input", shell=True)
         subprocess.call("python3 test_pre_process.py -i colab_inputs/input", shell=True)
         return jsonify({'message': 'Files uploaded successfully', 'files': uploaded_files})

@@ -10,10 +10,15 @@ type listProps = {
 };
 
 const list:React.FC<listProps> = () => {    
-    const [files, setFiles] = useState([]);
+    // const [files, setFiles] = useState([]);
+    const [text, setText] = useState('');
     const [image, setImage] = useState('');
     const [back, setBack] = useState('');
     const router = useRouter();
+
+    const handleTextChange = (e) => {
+        setText(e.target.value);
+    }
 
     const handleImageChange = (e) => {
         setImage(e.target.files[0]);
@@ -22,24 +27,26 @@ const list:React.FC<listProps> = () => {
       const handleBackChange = (e) => {
         setBack(e.target.files[0]);
       };
-    const handleFileChange = (e) => {
-        setFiles(e.target.files);
-    };
+    // const handleFileChange = (e) => {
+    //     setFiles(e.target.files);
+    // };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!files || files.length === 0) {
-            console.error('No files selected');
-            return;
-        }
+        // if (!files || files.length === 0) {
+        //     console.error('No files selected');
+        //     return;
+        // }
 
         const formData = new FormData();
-        for (let i = 0; i < files.length; i++) {
-            formData.append('files[]', files[i]);
-        }
+        // for (let i = 0; i < files.length; i++) {
+        //     formData.append('files[]', files[i]);
+        // }
         formData.append('image', image)
         formData.append('back', back)
+        formData.append('text', text)
+        console.log(text)
         try {
             let headers = new Headers();
             headers.append('Content-Type','application/json')
@@ -61,16 +68,16 @@ const list:React.FC<listProps> = () => {
         <div>
             
             <form onSubmit={handleSubmit} encType="multipart/form-data">
-                <h1>Upload Multiple Files
-                <input type="file" name="files" multiple accept=".png" onChange={handleFileChange} />
-                </h1>
+                <div>
+                <input onChange={handleTextChange} type="text" id="first_name" className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-1/2 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Enter Generated Background" required></input>
+                </div>
                 <div>Select Image
                 <input type="file" name="files"  accept=".png" onChange={handleImageChange} />
                 </div>
                 <div>Select Back
                 <input type="file" name="files" accept=".png" onChange={handleBackChange} />
                 </div>
-                <button type="submit">Upload Files</button>
+                <button type="submit">Submit</button>
             </form>
         </div>
     );
