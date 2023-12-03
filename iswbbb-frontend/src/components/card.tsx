@@ -32,10 +32,10 @@ const Card: React.FC<cardProps & { onUpdate: (url:string, x: number, y: number, 
     function handleStop(e: any, dragElement: any) {
         setX(dragElement.x);
         setY(dragElement.y);
+        onUpdate(url, dragElement.x, dragElement.y, w, h);
     }
 
     function handleResizeStop(e: any, direction: any, ref: any, d: any) {
-        console.log("hello")
         setW(ref.clientWidth);
         setH(ref.clientHeight);
         onUpdate(url, x, y, ref.clientWidth, ref.clientHeight);

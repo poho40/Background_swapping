@@ -41,7 +41,6 @@ const background:React.FC<listProps> = () => {
       }
     }
     setCards(updatedCards)
-    console.log(cards)
     console.log('Updated values received from Card:', url, x, y, w, h);
   };
 
