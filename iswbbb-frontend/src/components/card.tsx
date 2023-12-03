@@ -10,7 +10,7 @@ type cardProps = {
     url: string
 };
 
-const Card: React.FC<cardProps> = ({ url })=> {
+const Card: React.FC<cardProps & { onUpdate: (url:string, x: number, y: number, w: number, h: number) => void }> = ({ url, onUpdate }) => {
   
   useDragger(`${url}`);
 
@@ -61,12 +61,13 @@ const Card: React.FC<cardProps> = ({ url })=> {
     function handleStop(e: any, dragElement: any) {
         setX(dragElement.x);
         setY(dragElement.y);
+        onUpdate(url, dragElement.x, dragElement.y, w, h);
     }
 
     function handleResizeStop(e: any, direction: any, ref: any, d: any) {
-        console.log("hello")
         setW(ref.clientWidth);
         setH(ref.clientHeight);
+        onUpdate(url, x, y, ref.clientWidth, ref.clientHeight);
     }
 
   return <div id={url} className="object" ref={divRef}>

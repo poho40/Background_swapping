@@ -12,7 +12,6 @@ type listProps = {
 
 const background:React.FC<listProps> = () => {
   const [cards, setCards] = useState([]);
-  const [dimensions, { loading, error }] = useImageSize('https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Icecat1-300x300.svg/600px-Icecat1-300x300.svg.png');
   useEffect(() => {
     // Using fetch to fetch the api from 
     // flask server it will be redirected to proxy
@@ -20,20 +19,36 @@ const background:React.FC<listProps> = () => {
         res.json().then((data) => {
             // Setting a data from api
             let temp:any = []
+            let temp_dimension:any = []
             for (let i = 0; i < data.files.length; ++i){
-              temp.push({url: "/background/" + data.files[i]})
+              let str = "/background/" + data.files[i]
+              temp.push({url:str, dimensions: {x:0, y:0, width:200, height:200}})
             }
             setCards(temp)
+            console.log(temp)
         })
     );
   }, []);
+  const handleCardUpdate = (url:string, x: number, y: number, w: number, h: number) => {
+    // Handle the updated values here, if needed
+    let updatedCards = [...cards]
+    for (let i = 0;i < updatedCards.length; ++i) {
+      if (updatedCards[i]['url'] == url) {
+        updatedCards[i]['dimensions'].x = x
+        updatedCards[i]['dimensions'].y = y
+        updatedCards[i]['dimensions'].width = w
+        updatedCards[i]['dimensions'].height = h
+      }
+    }
+    setCards(updatedCards)
+    console.log('Updated values received from Card:', url, x, y, w, h);
+  };
 
-  console.log(dimensions)
 
     return(
         <div>
         <div className='container' style={{width: 1920, height: 1080}}>
-        {cards.map((card) => <Card url= {card.url} />)}
+        {cards.map((card) => <Card url= {card.url} onUpdate={handleCardUpdate} />)}
         </div>
         </div>
     )
