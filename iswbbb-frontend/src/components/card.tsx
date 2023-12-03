@@ -9,7 +9,7 @@ type cardProps = {
     url: string
 };
 
-const Card: React.FC<cardProps> = ({ url })=> {
+const Card: React.FC<cardProps & { onUpdate: (url:string, x: number, y: number, w: number, h: number) => void }> = ({ url, onUpdate }) => {
   
   useDragger(`${url}`);
 
@@ -36,6 +36,7 @@ const Card: React.FC<cardProps> = ({ url })=> {
     function handleResizeStop(e: any, direction: any, ref: any, d: any) {
         setW(ref.clientWidth);
         setH(ref.clientHeight);
+        onUpdate(url, x, y, ref.clientWidth, ref.clientHeight);
     }
 
   return <div id={url} className="object">
