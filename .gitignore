@@ -6,3 +6,11 @@ __pycache__/
 flickr8.*
 image_embeddings.*
 image_filenames
+flickr30k/
+flickr8k/
+colab_inputs/
+captions.*
+flickr8k.*
+flickr30k.*
+*.png
+colab_inputs/input/*.png
